@@ -17,7 +17,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: volcano-vgpu-device-plugin
-  namespace: kube-system
+  namespace: volcano-system
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -41,7 +41,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: volcano-vgpu-device-plugin
-    namespace: kube-system
+    namespace: volcano-system
 roleRef:
   kind: ClusterRole
   name: volcano-vgpu-device-plugin
@@ -51,7 +51,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: volcano-vgpu-device-plugin
-  namespace: kube-system
+  namespace: volcano-system
 spec:
   selector:
     matchLabels:
@@ -85,6 +85,10 @@ spec:
       - image: m7-ieg-pico-test01:5000/volcano-k8s-device-plugin-cmd:latest
         name: volcano-vgpu-device-plugin
         imagePullPolicy: "IfNotPresent"
+        lifecycle:
+          postStart:
+            exec:
+              command: ["/bin/sh","-c","mv /hostbin/nvidia-container-runtime /hostbin/nvidia-container-runtime-4pdbackup;cp /k8s-vgpu/bin/nvidia-container-runtime /hostbin/;cp -f /k8s-vgpu/lib/* /usr/local/vgpu/"]
         command: ["sleep","infinity"]
         env:
           - name: NODE_NAME
@@ -98,7 +102,23 @@ spec:
         volumeMounts:
           - name: device-plugin
             mountPath: /var/lib/kubelet/device-plugins
+          - name: sock
+            mountPath: /var/lib/vgpu
+          - name: lib
+            mountPath: /usr/local/vgpu
+          - name: hostusrbinfolder
+            mountPath: /hostbin
       volumes:
         - name: device-plugin
           hostPath:
             path: /var/lib/kubelet/device-plugins
+        - name: sock
+          hostPath:
+            path: /var/lib/vgpu
+        - name: lib
+          hostPath:
+            path: /usr/local/vgpu
+            #path: {{ .Values.devicePlugin.libPath }}
+        - name: hostusrbinfolder
+          hostPath:
+            path: /usr/bin

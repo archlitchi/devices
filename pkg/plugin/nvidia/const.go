@@ -19,9 +19,9 @@ package nvidia
 const (
 
 	// Extended gpu resource
-	VolcanoGPUResource = "volcano.sh/gpu-memory"
+	VolcanoGPUResource = "volcano.sh/vgpu-memory"
 	// Virtual GPU card number
-	VolcanoGPUNumber = "volcano.sh/gpu-number"
+	VolcanoGPUNumber = "volcano.sh/vgpu-number"
 
 	// Annotation
 	PredicateTime = "volcano.sh/predicate-time"
@@ -35,4 +35,6 @@ const (
 	TotalGPUResource = "VOLCANO_GPU_TOTAL"
 	// NVIDIA visible devices
 	VisibleDevice = "NVIDIA_VISIBLE_DEVICES"
+
+	VolcanoSchedulerEndpoint = "volcano-scheduler-service:1081"
 )

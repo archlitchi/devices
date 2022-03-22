@@ -29,6 +29,7 @@ import (
 	"github.com/NVIDIA/gpu-monitoring-tools/bindings/go/nvml"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
+	"volcano.sh/k8s-device-plugin/pkg/protos"
 
 	"google.golang.org/grpc"
 	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
@@ -44,7 +45,7 @@ type NvidiaDevicePlugin struct {
 	// Physical gpu card
 	physicalDevices []*Device
 	health          chan *Device
-	stop            chan struct{}
+	stop            chan interface{}
 
 	// Virtual devices
 	virtualDevices []*pluginapi.Device
@@ -71,7 +72,7 @@ func NewNvidiaDevicePlugin() *NvidiaDevicePlugin {
 	return &NvidiaDevicePlugin{
 		ResourceManager: NewGpuDeviceManager(),
 		resourceName:    VolcanoGPUResource,
-		socket:          pluginapi.DevicePluginPath + "volcano.sock",
+		socket:          pluginapi.DevicePluginPath + "volcanovgpu.sock",
 		kubeInteractor:  ki,
 
 		// These will be reinitialized every
@@ -89,7 +90,7 @@ func (m *NvidiaDevicePlugin) initialize() {
 	m.physicalDevices = m.Devices()
 	m.server = grpc.NewServer([]grpc.ServerOption{}...)
 	m.health = make(chan *Device)
-	m.stop = make(chan struct{})
+	m.stop = make(chan interface{})
 
 	m.virtualDevices, m.devicesByIndex = GetDevices()
 }
@@ -122,7 +123,7 @@ func (m *NvidiaDevicePlugin) Name() string {
 func (m *NvidiaDevicePlugin) Start() error {
 	m.initialize()
 	// must be called after initialize
-	if err := m.kubeInteractor.PatchGPUResourceOnNode(len(m.physicalDevices)); err != nil {
+	if err := m.kubeInteractor.PatchGPUResourceOnNode(len(m.physicalDevices) * 10); err != nil {
 		log.Printf("failed to patch gpu resource: %v", err)
 		m.cleanup()
 		return fmt.Errorf("failed to patch gpu resource: %v", err)
@@ -235,6 +236,7 @@ func (m *NvidiaDevicePlugin) Register() error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -312,7 +314,8 @@ Allocate:
 	id := GetGPUIDFromPodAnnotation(candidatePod)
 	if id < 0 {
 		klog.Warningf("Failed to get the gpu id for pod %s/%s", candidatePod.Namespace, candidatePod.Name)
-		return nil, fmt.Errorf("failed to find gpu id")
+		id = 0
+		//return nil, fmt.Errorf("failed to find gpu id")
 	}
 	_, exist := m.GetDeviceNameByIndex(uint(id))
 	if !exist {
@@ -325,11 +328,31 @@ Allocate:
 		reqGPU := len(req.DevicesIDs)
 		response := pluginapi.ContainerAllocateResponse{
 			Envs: map[string]string{
-				VisibleDevice:        fmt.Sprintf("%d", id),
-				AllocatedGPUResource: fmt.Sprintf("%d", reqGPU),
-				TotalGPUResource:     fmt.Sprintf("%d", gpuMemory),
+				VisibleDevice:              fmt.Sprintf("%d", id),
+				AllocatedGPUResource:       fmt.Sprintf("%d", reqGPU),
+				TotalGPUResource:           fmt.Sprintf("%d", gpuMemory),
+				protos.PluginRuntimeSocket: fmt.Sprintf("unix://%v", protos.RuntimeSocketFlag),
 			},
 		}
+		response.Envs = make(map[string]string)
+		//response.Annotations = map[string]string{util.AssignedIDsAnnotations: util.EncodeContainerDevices(reqDeviceIDs)}
+		//response.Envs["CUDA_DEVICE_SM_LIMIT"] = strconv.Itoa(int(100 * config.DeviceCoresScaling / float64(config.DeviceSplitCount)))
+		//response.Envs["NVIDIA_DEVICE_MAP"] = strings.Join(mapEnvs, " ")
+		//response.Envs["CUDA_DEVICE_MEMORY_SHARED_CACHE"] = fmt.Sprintf("/tmp/%v.cache", uuid.NewUUID())
+		//if config.DeviceMemoryScaling > 1 {
+		response.Envs["CUDA_OVERSUBSCRIBE"] = "true"
+		//}
+		response.Envs[protos.PluginRuntimeSocket] = fmt.Sprintf("unix://%v", protos.RuntimeSocketFlag)
+		response.Mounts = append(response.Mounts,
+			&pluginapi.Mount{ContainerPath: "/usr/local/vgpu/libvgpu.so",
+				HostPath: "/usr/local/vgpu/libvgpu.so",
+				ReadOnly: true},
+			&pluginapi.Mount{ContainerPath: "/etc/ld.so.preload",
+				HostPath: "/usr/local/vgpu/ld.so.preload",
+				ReadOnly: true},
+		)
+		responses.ContainerResponses = append(responses.ContainerResponses, &response)
+
 		responses.ContainerResponses = append(responses.ContainerResponses, &response)
 	}
 

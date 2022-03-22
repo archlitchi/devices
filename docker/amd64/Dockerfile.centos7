@@ -40,4 +40,4 @@ ENV NVIDIA_DRIVER_CAPABILITIES=utility
 
 COPY --from=build /go/src/volcano.sh/devices/volcano-device-plugin /usr/bin/volcano-device-plugin
 
-ENTRYPOINT ["volcano-device-plugin"]
+ENTRYPOINT ["bash"]

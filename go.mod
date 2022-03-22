@@ -28,15 +28,25 @@ replace (
 )
 
 require (
-	github.com/NVIDIA/gpu-monitoring-tools v0.0.0-20200421213100-de959f43b55a
+	github.com/NVIDIA/gpu-monitoring-tools v0.0.0-20211102125545-5a2c58442e48
 	github.com/fsnotify/fsnotify v1.4.9
+	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/golang/protobuf v1.3.2
+	github.com/mitchellh/gox v1.0.1 // indirect
+	github.com/opencontainers/runtime-spec v1.0.0
+	github.com/pelletier/go-toml v1.2.0
 	github.com/prometheus/common v0.4.1
-	golang.org/x/net v0.0.0-20200421231249-e086a090c8fd // indirect
-	google.golang.org/grpc v1.29.0
+	github.com/sirupsen/logrus v1.4.2
+	github.com/spf13/cobra v0.0.5
+	github.com/spf13/viper v1.4.0
+	github.com/stretchr/testify v1.5.1
+	github.com/tsaikd/KDGoLib v0.0.0-20211113074651-c6ea6ab4ee08
+	google.golang.org/grpc v1.28.0-pre
 	k8s.io/api v0.18.2
 	k8s.io/apimachinery v0.18.2
 	k8s.io/client-go v0.18.2
 	k8s.io/klog v1.0.0
+	k8s.io/klog/v2 v2.60.1
 	k8s.io/kubelet v0.0.0
 	k8s.io/kubernetes v1.18.2
 )

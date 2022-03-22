@@ -26,6 +26,9 @@ VERSION  ?= 1.0.0
 
 all: ubuntu16.04 centos7
 
+proto:
+	protoc --gofast_out=plugins=grpc:. ./pkg/protos/*.proto
+
 push:
 	$(DOCKER) push "$(REGISTRY)/volcano-device-plugin:$(VERSION)-ubuntu16.04"
 	$(DOCKER) push "$(REGISTRY)/volcano-device-plugin:$(VERSION)-centos7"
@@ -58,6 +61,11 @@ init:
 	mkdir -p ${BIN_DIR}
 	mkdir -p ${RELEASE_DIR}
 
-gen_bin: init
+gen_plugin: init
 	go get github.com/mitchellh/gox
-	CGO_ENABLED=1 gox -osarch=${REL_OSARCH} -ldflags ${LD_FLAGS} -output ${BIN_DIR}/${REL_OSARCH}/volcano-device-plugin ./
+	CGO_ENABLED=1 gox -osarch=${REL_OSARCH} -ldflags ${LD_FLAGS} -output ${BIN_DIR}/${REL_OSARCH}/k8s-device-plugin ./cmd/gpu/
+
+gen_runtime: init
+	CGO_ENABLED=1 gox -osarch=${REL_OSARCH} -ldflags ${LD_FLAGS} -output ${BIN_DIR}/${REL_OSARCH}/nvidia-container-runtime ./cmd/nvidia-container-runtime/
+
+binary: gen_plugin gen_runtime
